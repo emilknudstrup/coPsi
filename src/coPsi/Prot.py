@@ -15,6 +15,7 @@ from scipy.signal import find_peaks
 import statsmodels.api as sm
 from .Phot import Data
 from matplotlib.widgets import Slider
+import matplotlib as mpl
 
 
 class Rotator(Data):
@@ -29,8 +30,12 @@ class Rotator(Data):
 	'''
 
 
-	def __init__(self,file=None,x=np.array([]),y=np.array([]),dy=None,cadence=None):
+	def __init__(self,file=None,x=np.array([]),y=np.array([]),
+			xg=np.array([]),yg=np.array([]),
+			dy=None,cadence=None):
 		Data.__init__(self,file,x,y,dy,cadence)
+		self.xg = xg
+		self.yg = yg
 
 
 	def ACF(self,lags=np.array([]),maxT=None,**kwargs):
@@ -310,7 +315,7 @@ class Rotator(Data):
 				for mark in markers: mark.remove()
 				peakpos.clear()
 				markers.clear()
-			## Select errorneous peak
+			## Select erroneous peak
 			elif event.button == 3:
 				x = event.xdata
 				y = event.ydata
@@ -531,6 +536,110 @@ class Rotator(Data):
 		slide.on_changed(update)
 		## Needs to return the figure according to https://stackoverflow.com/questions/37025715/matplotlib-slider-not-working-when-called-from-a-function
 		return fig, slide
+
+
+	def plotCycles(self,cmap='copper',per=None,
+				maxT=None,cadence=3/24,bincadence=6/24):
+		'''Plot cycles
+
+		Plot cycles in the light curve.
+
+		'''
+
+		fig = plt.figure()
+		ax = fig.add_subplot(211)
+		ax2 = fig.add_subplot(212)
+
+		if not per:
+			per = self.per
+
+		if not maxT:
+			maxT = max(self.xg)
+		Ncycles = int(maxT/per)
+		colormap = plt.get_cmap(cmap,Ncycles)
+	
+		cycles = np.arange(Ncycles)
+		
+		# cadence = 3/24
+		
+		start_time = min(self.xg)
+
+		## Arrays for binned data
+		xb = np.array([])
+		yb = np.array([])
+		for n in cycles:
+			cycle = (self.xg > start_time+n*per) & (self.xg < start_time+(n+1)*per)
+			## Bin the data
+			x = self.xg[cycle]
+			y = self.yg[cycle]
+			if len(y):
+				
+				bins = np.arange(min(x),max(x),cadence)
+				digi = np.digitize(x,bins)
+				xx = np.array([x[digi == ii].mean() for ii in range(1,len(bins))])
+				yy = np.array([y[digi == ii].mean() for ii in range(1,len(bins))])
+
+				## Remove nans
+				finite = np.isfinite(yy) & np.isfinite(xx)
+				xx = xx[finite]
+				yy = yy[finite]
+				ax.plot(self.xg[cycle],self.yg[cycle],marker='.',color='lightgray',ls='none',zorder=-1,rasterized=True,markersize=1)
+				ax.plot(xx,yy,marker='o',ls='none',color='k',markersize=3)
+				ax.plot(xx,yy,marker='o',ls='none',color=colormap(n),markersize=2)
+				
+				## Phasefold and sort
+				xx = xx%per
+				ss = np.argsort(xx)
+				xx = xx[ss]
+				yy = yy[ss]
+				
+				ax2.plot(xx,yy,marker='o',ls='none',color='k',markersize=5)
+				ax2.plot(xx,yy,marker='o',ls='none',color=colormap(n),markersize=3.8)
+				xb = np.append(xb,xx)
+				yb = np.append(yb,yy)
+				
+
+		ax2.axhline(1.0,color='k',ls='-',lw=2.0)
+		ax2.axhline(1.0,color='w',ls='-',lw=1.0)
+
+
+		## Bin the binned data
+		# bincadence = 6/24
+		assert bincadence > cadence, 'Binning cadence must be larger than the original cadence.'
+		bins = np.arange(min(xb),max(xb),bincadence)
+		digi = np.digitize(xb,bins)
+
+		xx = np.array([xb[digi == ii].mean() for ii in range(1,len(bins))])
+		yy = np.array([yb[digi == ii].mean() for ii in range(1,len(bins))])
+		ax2.plot(xx,yy,color='k',lw=3.0)
+		ax2.plot(xx,yy,color='lightgray',lw=1.5)
+
+		## Make sure colorbar starts at data x-positions
+		# xmin, xmax = , 
+		xspan = maxT - min(self.xg)
+		xl1, xl2 = ax.get_xlim()
+		xlspan = xl2 - xl1
+		cover = xspan/xlspan
+
+		x1, x2 = ax.get_position().x0, ax.get_position().x1
+		length = (x2-x1)*cover
+		start = (x2 - x1) - length
+		start *= 0.5
+		xs1 = x1 + start
+		cbaxes = fig.add_axes([xs1, 0.875, length, 0.03])
+		# cbaxes = fig.add_axes([0.157, 0.875, 0.71, 0.03])
+
+		norm = mpl.colors.Normalize(vmin=0, vmax=Ncycles)
+		cb = fig.colorbar(mpl.cm.ScalarMappable(cmap=cmap, norm=norm),
+							orientation='horizontal',cax=cbaxes,ticks=np.arange(0,Ncycles,int(Ncycles/10)))
+		cb.ax.set_xlabel(r'$\rm Cycle \ number$')
+		cb.ax.xaxis.set_ticks_position('top')
+		cb.ax.xaxis.set_label_position('top')
+		ax.set_xlabel(r'$\rm Time \ (d)$')
+		ax.set_ylabel(r'$\rm Flux$')
+		ax2.set_xlabel(r'$\rm Phase \ (d)$')
+		ax2.set_ylabel(r'$\rm Flux$')
+		plt.subplots_adjust(hspace=0.275)
 
 if __name__ == '__main__':
 	dat = np.loadtxt('phot/KELT-11_cad_120sec_rotation.txt')
