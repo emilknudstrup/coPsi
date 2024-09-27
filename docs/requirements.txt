@@ -3,3 +3,4 @@ sphinx-book-theme==0.3.3
 nbsphinx
 sphinxcontrib-bibtex
 ipython
+Jinja2<3.1
