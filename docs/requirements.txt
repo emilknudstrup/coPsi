@@ -4,4 +4,4 @@ nbsphinx
 sphinxcontrib-bibtex
 ipython
 Jinja2<3.1
-sphinx==4.5.0
+sphinx==5.0.2
