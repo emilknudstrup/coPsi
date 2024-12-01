@@ -66,9 +66,9 @@ html_theme = 'sphinx_book_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
+html_favicon = "_static/logo.png"
 # Logo
-html_logo = "figures/logo.png"
+html_logo = "_static/logo.png"
 html_theme_options = {
     "logo_only": True,
     "repository_url" : "https://github.com/emilknudstrup/coPsi",

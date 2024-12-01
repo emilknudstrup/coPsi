@@ -36,7 +36,7 @@ class Data(object):
 	'''
 
 	def __init__(self,file=None,x=np.array([]),y=np.array([]),
-				dy=None,cadence=None):
+				dy=None,cadence=None,figsize=(10,6)):
 		'''Constructor
 
 		'''
@@ -58,6 +58,7 @@ class Data(object):
 			# 	self.maxT = maxT
 
 		self.ii = 0
+		self.figsize = figsize
 
 	def readData(self,file,atzero=True):
 		'''Data from .txt file
@@ -79,11 +80,13 @@ class Data(object):
 
 		'''
 		arr = np.loadtxt(file)
-		self.x = arr[:,0] - min(arr[:,0]) if atzero else arr[:,0]
-		self.y = arr[:,1]
+		ss = np.argsort(arr[:,0])
+
+		self.x = arr[ss,0] - min(arr[ss,0]) if atzero else arr[ss,0]
+		self.y = arr[ss,1]
 		ncols = arr.shape[1]
 		if ncols > 2:
-			self.dy = arr[:,2]
+			self.dy = arr[ss,2]
 		else:
 			self.dy = None
 
@@ -183,18 +186,18 @@ class Data(object):
 
 		diff = np.diff(self.x)
 		gaps = diff[diff > tolGap]
-		tooBig = [np.where(gap == diff)[0][0]+1 for gap in gaps]
+		tooBig = [np.where(gap == diff)[0][0] for gap in gaps]
 		lengths = []
 		idx = 0
 		for gap in tooBig:
 			lengths.append(max(self.x[idx:gap])-min(self.x[idx:gap]))
-			idx = gap
+			idx = gap + 1
 		lengths.append(max(self.x[idx:])-min(self.x[idx:]))
-
 		print('Found {} chunks with gaps exceeding {} days:'.format(len(lengths),tolGap))
 		for i in range(len(lengths)):
 			print('Chunk {}: {:.2f} days'.format(i,lengths[i]))
-		print('Longest timeseries between gaps: {:.2f} days'.format(max(lengths)))
+		# print('Longest timeseries between gaps: {:.2f} days'.format(max(lengths)))
+		print('Longest continous timeseries: {:.2f} days'.format(max(lengths)))
 		self.maxT = max(lengths)
 
 
@@ -279,7 +282,7 @@ class Data(object):
 		'''
 		if not ax:
 			plt.rc('text',usetex=usetex)
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 		if dots:
 			ax.plot(self.x-min(self.x),self.y,marker='o',markersize=2,color='k',ls='none')

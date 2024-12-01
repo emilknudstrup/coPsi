@@ -127,6 +127,7 @@ class iStar(object):
 				vsini = (4.5,0.5,0.0,10.,'gauss'),
 				cosi = (0,0.1,-1.0,1.0,'uniform'),
 				Teff = (6250,100,3000,9000,'gauss'),
+				figsize=(10,6)
 				):
 		'''Constructor
 
@@ -153,6 +154,7 @@ class iStar(object):
 						'sini_down' : [0.928,0.042]
 						}
 					}
+		self.figsize = figsize
 
 	#def coPsi(self,inco,incs,lam,return_psi=True):
 	def coPsi(self):
@@ -292,7 +294,7 @@ class iStar(object):
 
 		if not ax:
 			plt.rc('text',usetex=usetex)
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 
 		c0 = self.cLouden[oblDist]['c0'][0]
@@ -462,7 +464,7 @@ class iStar(object):
 		## - chain is longer than 100 times the estimated autocorrelation time 
 		## - & this estimate changed by less than 1%.
 		if plot_convergence:
-			figc = plt.figure()
+			figc = plt.figure(figsize=self.figsize)
 			axc = figc.add_subplot(111)
 			nn, yy = 100*np.arange(1,index+1), autocorr[:index]
 			axc.plot(nn,nn/50.,'k--')
@@ -524,7 +526,7 @@ class iStar(object):
 				plt.savefig(path+'corner.pdf')
 
 		if plot_vsini:
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 			ax.hist(v,color='C0',
 					bins=50, density=True, histtype='step', 
@@ -697,7 +699,7 @@ class iStar(object):
 		print('{}={:0.3f}+{:0.3f}-{:0.3f}'.format(par,val,up,low))
 		xkde, ykde = self.getKDE(z)
 		if ax == None:
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 		ax.plot(xkde,ykde,color='k')
 

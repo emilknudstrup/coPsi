@@ -181,7 +181,8 @@ class Rotator(Data):
 				prominence=(0.3,1.1),maxpeaks=10,
 				poly=False,plot=True,
 				print_pars=True,font=12,
-				usetex=False,**kwargs):
+				usetex=False,xmin=None,xmax=None,ymax=0.75,
+				**kwargs):
 		'''Rotation period from ACF peaks
 
 		Find peaks in ACF using :py:class:`scipy.signal.find_peaks()`. 
@@ -212,6 +213,15 @@ class Rotator(Data):
 		:param usetex: Whether to use LaTeX in plots. Optional, default ``False``.
 		:type usetex: bool
 
+		:param xmin: Minimum for x-axis. Optional, default ``None``, will be set to minimum of ACF.
+		:type xmin: float
+
+		:param xmax: Maximum for x-axis. Optional, default ``None``, will be set to maximum of ACF.
+		:type xmax: float
+		
+		:param ymax: Maximum value for y-axis. Optional, default 0.75.
+		:type ymax: float
+
 		:params kwargs: Extra keywords are sent to :py:class:`scipy.signal.find_peaks()`.
 		:type kwargs: dict
 
@@ -223,9 +233,13 @@ class Rotator(Data):
 		if peaks is None:
 			peaks, _ = find_peaks(self.acf, prominence=prominence,**kwargs)
 			peaks = peaks[:maxpeaks] # Only take up to maxpeaks, see McQuilllan2013
-
+			self.peaks = peaks
+			print('Peaks found at: ',self.tau[peaks])
+		else:
+			print('Peaks given at: ',self.tau[peaks])
+		
 		if plot:
-			self.plotACF(peaks=peaks,usetex=usetex)
+			self.plotACF(peaks=peaks,usetex=usetex,xmin=xmin,xmax=xmax,font=font,ymax=ymax)
 
 		if poly:
 			pars, cov = np.polyfit(np.arange(1,len(peaks)+1),self.tau[peaks],1,cov=True)
@@ -234,7 +248,7 @@ class Rotator(Data):
 			print('From linear fit and covariance:')
 			if plot:
 				plt.rc('text',usetex=usetex)
-				fig = plt.figure()
+				fig = plt.figure(figsize=self.figsize)
 				ax = fig.add_subplot(111)
 				xs = np.linspace(0,len(peaks)+1,100)
 				ax.plot(xs,xs*pars[0]+pars[1],ls='-',color='k',lw=2.0)
@@ -257,7 +271,7 @@ class Rotator(Data):
 		if print_pars:
 			print('Prot = {:0.4f}+/-{:0.4f} d'.format(per,sd))
 
-	def pickPeaks(self,font=12,ymax=0.75,usetex=False):
+	def pickPeaks(self,font=12,ymax=0.75,xmin=None,xmax=None,usetex=False):
 		'''Pick peaks in ACF
 
 		Plot ACF and pick peaks using mouse clicks. 
@@ -271,6 +285,12 @@ class Rotator(Data):
 		:param ymax: Maximum value for y-axis. Optional, default 0.7.
 		:type ymax: float
 
+		:param xmin: Minimum for x-axis. Optional, default ``None``, will be set to minimum of ACF.
+		:type xmin: float
+
+		:param xmax: Maximum for x-axis. Optional, default ``None``, will be set to maximum of ACF.
+		:type xmax: float
+
 		:param usetex: Whether to use LaTeX in plots. Optional, default ``False``.
 		:type usetex: bool
 
@@ -279,13 +299,15 @@ class Rotator(Data):
 		
 
 		plt.rc('text',usetex=usetex)
-		fig = plt.figure()
+		fig = plt.figure(figsize=self.figsize)
 		ax = fig.add_subplot(111)
 		ax.set_title('Pick peaks', fontsize=12)
 		ax.plot(self.tau,self.racf,color='k',alpha=0.3,label=r'$\rm Raw \ ACF$')
 		ax.plot(self.tau,self.acf,color='k',label=r'$\rm Smoothed$')
 		ax.axhline(0.0,ls='--',color='C7',zorder=-5,lw=0.5)
-		ax.set_xlim(min(self.tau),max(self.tau))
+		if xmin == None: xmin = min(self.tau)
+		if xmax == None: xmax = max(self.tau)
+		ax.set_xlim(xmin,xmax)
 		ax.set_ylim(ymax=ymax)
 		ax.set_xlabel(r'$\tau_k \ \rm (days)$',fontsize=font)
 		ax.set_ylabel(r'$\rm ACF$',fontsize=font)
@@ -310,7 +332,7 @@ class Rotator(Data):
 				for mark in markers: mark.remove()
 				peakpos.clear()
 				markers.clear()
-			## Select errorneous peak
+			## Select erroneous peak
 			elif event.button == 3:
 				x = event.xdata
 				y = event.ydata
@@ -329,8 +351,12 @@ class Rotator(Data):
 
 			fig.canvas.draw()
 			if len(peakpos):
-				self.peaks = np.asarray(peakpos)[:,0]
-
+				peaks = np.asarray(peakpos)[:,0]
+				self.peaks = []
+				for pp in peaks:
+					peak = np.argmin(np.abs(self.tau-pp))
+					self.peaks.append(peak)
+		
 		cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
 	def getProt(self,prep=True,timeWindow=8001,timePoly=3,
@@ -361,7 +387,7 @@ class Rotator(Data):
 		self.fitProt()
 
 
-	def plotACF(self,ax=None,font=12,ymax=0.75,usetex=False,return_ax=0,peaks=np.array([])):
+	def plotACF(self,ax=None,font=12,ymax=0.75,xmin=None,xmax=None,usetex=False,return_ax=0,peaks=np.array([])):
 
 		'''Plot the periodogram
 
@@ -370,6 +396,12 @@ class Rotator(Data):
 
 		:param ymax: Maximum value for y-axis. Optional, default 0.7.
 		:type ymax: float
+
+		:param xmin: Minimum for x-axis. Optional, default ``None``, will be set to minimum of ACF.
+		:type xmin: float
+
+		:param xmax: Maximum for x-axis. Optional, default ``None``, will be set to maximum of ACF.
+		:type xmax: float
 
 		:param font: Fontsize for labels. Optional, default 12.
 		:type font: float
@@ -387,12 +419,14 @@ class Rotator(Data):
 		'''
 		if not ax:
 			plt.rc('text',usetex=usetex)
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 		ax.plot(self.tau,self.racf,color='k',alpha=0.3,label=r'$\rm Raw \ ACF$')
 		ax.plot(self.tau,self.acf,color='k',label=r'$\rm Smoothed$')
 		ax.axhline(0.0,ls='--',color='C7',zorder=-5,lw=0.5)
-		ax.set_xlim(min(self.tau),max(self.tau))
+		if xmin == None: xmin = min(self.tau)
+		if xmax == None: xmax = max(self.tau)
+		ax.set_xlim(xmin,xmax)
 		ax.set_ylim(ymax=ymax)
 		ax.set_xlabel(r'$\tau_k \ \rm (days)$',fontsize=font)
 		ax.set_ylabel(r'$\rm ACF$',fontsize=font)
@@ -408,15 +442,25 @@ class Rotator(Data):
 
 		if return_ax: return ax
 
-	def plotPeriodogram(self,ax=None,xmax=None,font=12,usetex=False):
+	def plotPeriodogram(self,ax=None,xmin=None,xmax=None,ymin=None,ymax=None,font=12,usetex=False):
 		'''Plot the periodogram
 
 		:param ax: Axis in which to plot the KDE. Optional, default ``None``, figure and axis will be created.
 		:type ax: :py:class:`matplotlib.axes._subplots.AxesSubplot`
 
-		:param xmax: Maximum time for axis. Optional, default ``None``, will be set to half the duration of the timeseries.
+		:param xmin: Minimum time for axis. Optional, default ``None``, will be set to minimum time in the timeseries.
+		:type xmin: float		
+
+		:param xmax: Maximum time for axis. Optional, default ``None``, will be set to maximum time in the timeseries.
 		:type xmax: float
 
+		:param ymin: Minimum value for y-axis. Optional, default ``None``.
+		:type ymin: float		
+
+		:param ymax: Maximum time for y-axis. Optional, default ``None``. 
+		:type ymax: float
+
+		
 	
 		:param font: Fontsize for labels. Optional, default 12.
 		:type font: float
@@ -428,7 +472,7 @@ class Rotator(Data):
 
 		if not ax:
 			plt.rc('text',usetex=usetex)
-			fig = plt.figure()
+			fig = plt.figure(figsize=self.figsize)
 			ax = fig.add_subplot(111)
 		time = 1/self.frequency
 		ax.plot(time,self.power,lw=3.0,color='k')
@@ -436,8 +480,15 @@ class Rotator(Data):
 
 		if not xmax:
 			xmax = max(time)
-		ax.set_xlim(0.0,xmax)
-		
+		if not xmin:
+			xmin = min(time)
+		ax.set_xlim(xmin,xmax)
+		if ymax == None:
+			ymax = max(self.power)+0.1*np.abs(max(self.power))
+		if ymin == None:
+			ymin = -0.1*np.abs(max(self.power))
+		ax.set_ylim(ymin,ymax)
+
 		try:
 			mu = self.per
 			sigma = self.sper
@@ -495,7 +546,7 @@ class Rotator(Data):
 		'''	
 		
 		## Make the plot
-		fig = plt.figure()
+		fig = plt.figure(figsize=self.figsize)
 		ax = fig.add_subplot(111)
 		if sc:
 			scat = ax.scatter(x%per, y, marker='o',edgecolor='k',facecolor='C1',s=30)

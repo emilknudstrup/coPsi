@@ -26,6 +26,7 @@ where :math:`i_\star` is the stellar inclination, :math:`i_{\rm o}` is the orbit
    examples/empirical.ipynb
    examples/mcmc.ipynb
    examples/rotation.ipynb
+   examples/rotation_pg.ipynb
 
 .. toctree::
    :maxdepth: 2
