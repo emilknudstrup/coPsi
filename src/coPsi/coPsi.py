@@ -726,6 +726,40 @@ class iStar(object):
 		idx_low = np.argmin(abs(xkde-(val-low)))
 		plt.vlines(val-low,ymin=0,ymax=ykde[idx_low],linestyle='--',color='k')
 
+	def savePosterior(self,post='cosp',path='./',name='name',format='.csv',
+				xcol=None,ycol=None):
+		'''Save posteriors
+
+		Save the posteriors for the stellar inclination, obliquity, and projected obliquity in a .csv file.
+
+
+		:param post: The posterior to save. Optional, default 'cosp'. Options are 'cosp', 'incs', 'lam'.
+		:type post: str
+
+		:param path: Path to save the file. Optional, default './'.
+		:type path: str
+
+		:param name: Name of the file. Optional, default 'name'.
+		:type name: str
+
+		:param format: Format of the file. Optional, default '.csv'. Options are '.csv', '.npy'.
+		:type format: str
+
+		'''
+		assert post in ['cosp','incs','lam'], print('{} is not a valid option.'.format(post))
+		assert format in ['.csv','.npy'], print('{} is not a valid format.'.format(format))
+		
+		xkde, ykde = self.getKDE(self.dist[post])
+		if xcol == None:
+			xcol = post
+		if ycol == None:
+			ycol = 'KDE'
+		if format == '.csv':
+			df = pd.DataFrame({xcol : xkde, ycol : ykde})
+			df.to_csv(path+name+format,index=False)
+		elif format == '.npy':
+			np.save(path+name+format,[xkde,ykde])
+
 
 def lnprob(positions,**pars):
 	'''Likelihood 
