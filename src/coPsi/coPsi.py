@@ -507,7 +507,7 @@ class iStar(object):
 		pps = pars['FPs'] + ['incs','v','vsini']
 
 		for ii, fp in enumerate(pps):
-			val,lower,upper = self.getConfidence(flat_samples[:,ii])
+			val,upper,lower = self.getConfidence(flat_samples[:,ii])
 			results[fp] = [val,lower,upper]
 			medians.append(val)
 		labs = [self.labels[par] for par in pps]

@@ -240,6 +240,8 @@ class Rotator(Data):
 			peaks = peaks[:maxpeaks] # Only take up to maxpeaks, see McQuilllan2013
 			self.peaks = peaks
 			print('Peaks found at: ',self.tau[peaks])
+			
+			
 		else:
 			print('Peaks given at: ',self.tau[peaks])
 		
@@ -276,7 +278,7 @@ class Rotator(Data):
 		if print_pars:
 			print('Prot = {:0.4f}+/-{:0.4f} d'.format(per,sd))
 
-	def pickPeaks(self,font=12,ymax=0.75,xmin=None,xmax=None,usetex=False):
+	def pickPeaks(self,closest='x',font=12,ymax=0.75,xmin=None,xmax=None,usetex=False):
 		'''Pick peaks in ACF
 
 		Plot ACF and pick peaks using mouse clicks. 
@@ -284,6 +286,9 @@ class Rotator(Data):
 
 		The selected peaks are stored in :py:attr:`peaks`.
 		
+		:param closest: Whether to pick the closest peak to the click. Optional, default 'x'. Can be 'xy' or 'x'. If 'xy' will pick the peak closest in both x and y relative to the scale, if 'x' will pick the peak closest in x. If anything else it will pick the location of the click event.
+		:type closest: bool
+
 		:param font: Fontsize for labels. Optional, default 12.
 		:type font: float
 
@@ -329,8 +334,25 @@ class Rotator(Data):
 			mistake = False
 			## Add peak
 			if event.button == 1:
-				peakpos.append((event.xdata,event.ydata))
-				mark = ax.scatter(event.xdata,event.ydata,marker='x',color='C1',s=30)
+				if closest == 'x':
+					idx = np.argmin(np.abs(self.tau-event.xdata))
+					xp, yp = self.tau[idx], self.acf[idx]
+				elif closest == 'xy':
+					idx = np.argmin(np.abs(self.tau-event.xdata))
+					idy = np.argmin(np.abs(self.acf-event.ydata))
+					xdiff = np.abs(self.tau[idx]-event.xdata)
+					ydiff = np.abs(self.acf[idy]-event.ydata)
+					print(xdiff,ydiff)
+					yrange = ax.get_ylim()[1]-ax.get_ylim()[0]
+					xrange = ax.get_xlim()[1]-ax.get_xlim()[0]
+					xrel = xdiff/xrange
+					yrel = ydiff/yrange
+					idx = np.argmin(np.sqrt(xrel*(self.tau-event.xdata)**2+yrel*(self.acf-event.ydata)**2))
+					xp, yp = self.tau[idx], self.acf[idx]
+				else:
+					xp, yp = event.xdata, event.ydata
+				peakpos.append((xp,yp))
+				mark = ax.scatter(xp,yp,marker='x',color='C1',s=30)
 				markers.append(mark)
 			## Clear all peaks
 			elif event.button == 2:
@@ -596,7 +618,8 @@ class Rotator(Data):
 		Plot cycles in the light curve.
 
 		'''
-
+		self.xg = self.x
+		self.yg = self.y
 		fig = plt.figure()
 		ax = fig.add_subplot(211)
 		ax2 = fig.add_subplot(212)
@@ -608,7 +631,7 @@ class Rotator(Data):
 			maxT = max(self.xg)
 		Ncycles = int(maxT/per)
 		colormap = plt.get_cmap(cmap,Ncycles)
-	
+
 		cycles = np.arange(Ncycles)
 		
 		# cadence = 3/24
@@ -682,7 +705,7 @@ class Rotator(Data):
 
 		norm = mpl.colors.Normalize(vmin=0, vmax=Ncycles)
 		cb = fig.colorbar(mpl.cm.ScalarMappable(cmap=cmap, norm=norm),
-							orientation='horizontal',cax=cbaxes,ticks=np.arange(0,Ncycles,int(Ncycles/10)))
+							orientation='horizontal',cax=cbaxes)#,ticks=np.arange(0,Ncycles,int(Ncycles/10)))
 		cb.ax.set_xlabel(r'$\rm Cycle \ number$')
 		cb.ax.xaxis.set_ticks_position('top')
 		cb.ax.xaxis.set_label_position('top')
